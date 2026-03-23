@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuestionario - Ética Digital</title>
+
+<style>
+body { font-family: Arial; margin:0; background:#f4f6f9; }
+
+header {
+    background:#1e3a8a; color:white; padding:20px; text-align:center; position:relative;
+}
+
+.logo { position:absolute; top:10px; width:80px; }
+.logo-left { left:10px; }
+.logo-right { right:10px; }
+
+.container {
+    max-width:900px; margin:30px auto; background:white; padding:25px;
+    border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+textarea, input {
+    width:100%; margin:8px 0 15px; padding:8px;
+    border-radius:5px; border:1px solid #ccc;
+}
+
+button {
+    background:#1e3a8a; color:white; padding:12px;
+    border:none; border-radius:5px; cursor:pointer; width:100%;
+    margin-top:5px;
+}
+
+#inicio {
+    position:fixed; width:100%; height:100%;
+    background:#1e3a8a; color:white;
+    display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+    text-align:center; z-index:999;
+}
+
+#contenido { display:none; }
+
+/* PANEL MAESTRO */
+#panelMaestro {
+    position:fixed;
+    bottom:10px;
+    right:10px;
+    background:white;
+    border:2px solid #1e3a8a;
+    padding:10px;
+    width:250px;
+    display:none;
+    z-index:1000;
+}
+</style>
+</head>
+
+<body>
+
+<!-- PANEL MAESTRO -->
+<div id="panelMaestro">
+    <h3>Panel Maestro</h3>
+
+    <input type="text" id="matriculaControl" placeholder="Matrícula">
+
+    <button onclick="rehabilitar()">Rehabilitar intento</button>
+    <button onclick="bloquear()">Bloquear alumno</button>
+
+    <p id="msgMaestro"></p>
+</div>
+
+<!-- INICIO -->
+<div id="inicio">
+    <h1>Examen de Ética Digital</h1>
+
+    <p>Ingresa tu matrícula:</p>
+    <input type="text" id="codigoAlumno">
+
+    <button onclick="validarCodigo()">Validar</button>
+    <button onclick="iniciarExamen()">Iniciar</button>
+
+    <p id="mensaje"></p>
+</div>
+
+<!-- CONTENIDO -->
+<div id="contenido">
+
+<header>
+    <img src="utld.png" class="logo logo-left">
+    <img src="renders.png" class="logo logo-right">
+
+    <h1>Comunicación y Habilidades Digitales</h1>
+    <p>Ética Digital</p>
+    <p>Ing. Braulio Aldair Gutierrez G.</p>
+</header>
+
+<div class="container">
+
+<h2>Cuestionario</h2>
+
+<label>Nombre:</label>
+<input type="text">
+
+<!-- PREGUNTAS -->
+<div><label>1...</label><textarea></textarea></div>
+<div><label>2...</label><textarea></textarea></div>
+<div><label>3...</label><textarea></textarea></div>
+
+<button onclick="guardarPDF()">Guardar PDF</button>
+
+</div>
+</div>
+
+<script>
+
+let examenIniciado = false;
+let codigoValido = false;
+let matriculaActual = "";
+
+/* 🔐 CLAVE MAESTRO */
+const CLAVE_MAESTRO = "admin123";
+
+/* ACTIVAR PANEL MAESTRO (tecla secreta: M) */
+document.addEventListener("keydown", function(e){
+    if(e.key === "M"){
+        let pass = prompt("Clave maestro:");
+        if(pass === CLAVE_MAESTRO){
+            document.getElementById("panelMaestro").style.display = "block";
+        }
+    }
+});
+
+/* API */
+const API_URL = "https://script.google.com/macros/s/AKfycbyn47_hjhzRtGrSwHJZJpEuN5OrivRp6ggcJcTIRPIJOtuDVoGcm9u8Gh5e1G3Ef6-P/exec";
+
+/* VALIDAR */
+async function validarCodigo(){
+
+    let matricula = document.getElementById("codigoAlumno").value.trim();
+    matriculaActual = matricula;
+
+    if(!matricula){
+        document.getElementById("mensaje").innerText = "Ingresa matrícula";
+        return;
+    }
+
+    try{
+        let res = await fetch(API_URL + "?matricula=" + matricula);
+        let data = await res.json();
+
+        if(!data.valido){
+            document.getElementById("mensaje").innerText = "No encontrada";
+            return;
+        }
+
+        if(localStorage.getItem("bloqueado_"+matricula)){
+            document.getElementById("mensaje").innerText = "Examen cerrado por docente";
+            return;
+        }
+
+        if(localStorage.getItem("intento_"+matricula)){
+            document.getElementById("mensaje").innerText = "Ya realizaste el examen";
+            return;
+        }
+
+        codigoValido = true;
+        document.getElementById("mensaje").innerText = "Acceso permitido ✔";
+
+    }catch{
+        document.getElementById("mensaje").innerText = "Error conexión";
+    }
+}
+
+/* INICIAR */
+function iniciarExamen(){
+
+    if(!codigoValido){
+        alert("Valida primero");
+        return;
+    }
+
+    let doc = document.documentElement;
+    if(doc.requestFullscreen){ doc.requestFullscreen(); }
+
+    localStorage.setItem("intento_"+matriculaActual, "usado");
+
+    document.getElementById("inicio").style.display="none";
+    document.getElementById("contenido").style.display="block";
+
+    examenIniciado = true;
+}
+
+/* PDF */
+function guardarPDF(){
+    window.print();
+}
+
+/* BLOQUEO SALIDA */
+window.onbeforeunload = function(){
+    if(examenIniciado){
+        return "No puedes salir";
+    }
+};
+
+/* CAMBIO PESTAÑA */
+document.addEventListener("visibilitychange", function(){
+    if(examenIniciado && document.hidden){
+        alert("Examen finalizado");
+        document.body.innerHTML="<h1>Intento finalizado</h1>";
+    }
+});
+
+/* 🎓 PANEL MAESTRO FUNCIONES */
+
+function rehabilitar(){
+    let m = document.getElementById("matriculaControl").value.trim();
+    localStorage.removeItem("intento_"+m);
+    localStorage.removeItem("bloqueado_"+m);
+    document.getElementById("msgMaestro").innerText = "Alumno rehabilitado ✔";
+}
+
+function bloquear(){
+    let m = document.getElementById("matriculaControl").value.trim();
+    localStorage.setItem("bloqueado_"+m, "si");
+    document.getElementById("msgMaestro").innerText = "Alumno bloqueado ❌";
+}
+
+</script>
+
+</body>
+</html>
